@@ -1,0 +1,202 @@
+package np.com.madhabdhakal.imeifinder;
+
+import android.accounts.Account;
+import android.accounts.AccountManager;
+import android.app.ProgressDialog;
+import android.content.ContentValues;
+import android.content.Context;
+import android.database.Cursor;
+import android.net.Uri;
+import android.os.AsyncTask;
+import android.support.v7.app.AppCompatActivity;
+import android.os.Bundle;
+import android.telephony.TelephonyManager;
+import android.util.Log;
+import android.view.View;
+import android.widget.Button;
+import android.widget.TextView;
+import android.widget.Toast;
+
+public class MainActivity extends AppCompatActivity {
+    String imei;
+    String mobile;
+    Button btnsave;
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+
+
+        new checkIMEI().execute();
+        TextView tv2 = (TextView) findViewById(R.id.tv2);
+        tv2.setText(getImei());
+
+        TextView tv4 = (TextView) findViewById(R.id.tv4);
+        tv4.setText(SimSerialID());
+
+        TextView tv6 = (TextView) findViewById(R.id.tv6);
+        tv6.setText(getEmail());
+        btnsave= (Button) findViewById(R.id.btnsave);
+        btnsave.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                String IMEINO = getImei();
+                String Phoneno = getPhone();
+                String Email = getEmail();
+
+                savetoDatabase(IMEINO, Phoneno, Email);
+            }
+
+
+            private void savetoDatabase(String imeino, String phoneno, String email) {
+                String[] projection = {DbHelper.IMEINO};
+                Cursor cursor = getContentResolver().query(provider.CONTENT_URI_FOR_IMEI_DETAIL, projection,null,null,null);
+
+                String[] mobile = {DbHelper.PHONENO};
+                Cursor cursor1 = getContentResolver().query(provider.CONTENT_URI_FOR_IMEI_DETAIL, mobile,null,null,null);
+
+                ContentValues values = new ContentValues();
+                values.put(DbHelper.IMEINO, imeino);
+                values.put(DbHelper.PHONENO, phoneno);
+                values.put(DbHelper.EMAIL, email);
+
+                Uri insertUri = getContentResolver().insert(provider.CONTENT_URI_FOR_IMEI_DETAIL, values);
+
+                Log.d("database", "Inserted into " + insertUri);
+            }
+        });
+
+            }
+
+
+
+
+
+
+
+    public class checkIMEI extends AsyncTask<Void, Void, String> {
+
+        ProgressDialog progressDialog;
+        String IMEINO = getImei();
+        String Phoneno= getPhone();
+        String Email = getEmail();
+        String send = null;
+        String[] projection = {DbHelper.IMEINO};
+        Cursor cursor = getContentResolver().query(provider.CONTENT_URI_FOR_IMEI_DETAIL, projection, null, null, null);
+
+        String[] mobile = {DbHelper.PHONENO};
+        Cursor cursor1 = getContentResolver().query(provider.CONTENT_URI_FOR_IMEI_DETAIL, mobile,null,null,null);
+
+
+        @Override
+        protected void onPreExecute() {
+            super.onPreExecute();
+            progressDialog = ProgressDialog.show(MainActivity.this, "Please Wait...","Loading Data..." );
+
+        }
+
+        @Override
+        protected String doInBackground(Void... params) {
+
+            Thread th = new Thread() {
+                @Override
+                public void run() {
+                    super.run();
+                    try{
+                        if (projection!=mobile) {
+
+                            send = "Device Lost";
+                        }
+                    }
+                    catch (Exception e){
+                        send = "Device is safe ";
+                    }
+
+                    try {
+                        Thread.sleep(4000);
+                    }catch (InterruptedException e){
+                        e.printStackTrace();
+                    }
+                }
+            };
+            th.start();
+            return send;
+        }
+
+        @Override
+        protected void onPostExecute(String s) {
+            super.onPostExecute(s);
+            progressDialog.cancel();
+
+
+            Toast.makeText(MainActivity.this, send, Toast.LENGTH_SHORT).show();
+
+        }
+    }
+
+    private String getImei() {
+        // TODO Auto-generated method stub
+
+        imei = ((TelephonyManager) getSystemService(TELEPHONY_SERVICE)).getDeviceId();
+
+        return imei;
+    }
+
+    private String getPhone() {
+
+        TelephonyManager tm = (TelephonyManager) getSystemService(Context.TELEPHONY_SERVICE);
+
+        int phoneType = tm.getPhoneType();
+        String Name = null;
+        switch (phoneType) {
+
+            case (TelephonyManager.PHONE_TYPE_CDMA):
+                Name = "CDMA";
+                //Toast.makeText(GetIMEI.this, "CDMA", Toast.LENGTH_SHORT).show();
+                break;
+            case (TelephonyManager.PHONE_TYPE_GSM):
+                Name = "GSM";
+                //Toast.makeText(GetIMEI.this, "GSM", Toast.LENGTH_SHORT).show();
+                break;
+            case (TelephonyManager.PHONE_TYPE_NONE):
+                Name = "NONE";
+                //Toast.makeText(GetIMEI.this, "NONE", Toast.LENGTH_SHORT).show();
+                break;
+        }
+
+
+        return Name;
+    }
+
+    private String SimSerialID() {
+        TelephonyManager tm = (TelephonyManager) getSystemService(Context.TELEPHONY_SERVICE);
+        String subscriberID = tm.getSimSerialNumber();
+        return subscriberID;
+    }
+
+
+    private String getEmail() {
+        AccountManager accountManager = AccountManager.get(this);
+        Account account = getAccount(accountManager);
+
+        if (account == null) {
+            return null;
+        } else {
+            return account.name;
+        }
+    }
+
+    private static Account getAccount(AccountManager accountManager) {
+        Account[] accounts = accountManager.getAccountsByType("com.google");
+        Account account;
+        if (accounts.length > 0) {
+            account = accounts[0];
+        } else {
+            account = null;
+        }
+        return account;
+    }
+
+
+}
+
